@@ -151,6 +151,10 @@ export default {
             this.state.processStatus = 'Pre-processing...'
             this.state.processPercentage = 100
             this.file = file
+
+            // Emit event for chatbot integration
+            this.$eventHub.$emit('fileLoaded', { file: file })
+
             const reader = new FileReader()
             reader.onload = function (e) {
                 const data = reader.result

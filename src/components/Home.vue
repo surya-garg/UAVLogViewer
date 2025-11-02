@@ -16,6 +16,7 @@
         <AttitudeViewer @close="state.showAttitude = false" v-if="state.showAttitude"></AttitudeViewer>
         <MagFitTool     @close="state.showMagfit = false" v-if="state.showMagfit"></MagFitTool>
         <EkfHelperTool  @close="state.showEkfHelper = false" v-if="state.showEkfHelper"></EkfHelperTool>
+        <ChatBot :session-id="chatbotSessionId" :has-log="chatbotHasLog" v-if="state.showChatbot"></ChatBot>
         <div class="container-fluid" style="height: 100%; overflow: hidden;">
 
             <sidebar/>
@@ -60,12 +61,15 @@ import { MavlinkDataExtractor } from '../tools/mavlinkDataExtractor'
 import { DjiDataExtractor } from '../tools/djiDataExtractor'
 import MagFitTool from '@/components/widgets/MagFitTool.vue'
 import EkfHelperTool from '@/components/widgets/EkfHelperTool.vue'
+import ChatBot from '@/components/ChatBot.vue'
+import chatbotService from '@/services/chatbotService'
 import Vue from 'vue'
 
 export default {
     name: 'Home',
     created () {
         this.$eventHub.$on('messagesDoneLoading', this.extractFlightData)
+        this.$eventHub.$on('fileLoaded', this.handleFileLoaded)
         this.state.messages = {}
         this.state.timeAttitude = []
         this.state.timeAttitudeQ = []
@@ -74,14 +78,30 @@ export default {
     },
     beforeDestroy () {
         this.$eventHub.$off('messages')
+        this.$eventHub.$off('fileLoaded')
     },
     data () {
         return {
             state: store,
-            dataExtractor: null
+            dataExtractor: null,
+            chatbotSessionId: null,
+            chatbotHasLog: false
         }
     },
     methods: {
+        async handleFileLoaded (fileData) {
+            // Upload the file to chatbot backend when a .bin file is loaded
+            if (fileData && fileData.file && fileData.file.name && fileData.file.name.endsWith('.bin')) {
+                try {
+                    const response = await chatbotService.uploadLog(fileData.file)
+                    this.chatbotSessionId = response.session_id
+                    this.chatbotHasLog = true
+                    console.log('File uploaded to chatbot backend:', response)
+                } catch (error) {
+                    console.error('Failed to upload file to chatbot:', error)
+                }
+            }
+        },
         extractFlightData () {
             if (this.dataExtractor === null) {
                 if (this.state.logType === 'tlog') {
@@ -239,7 +259,8 @@ export default {
         DeviceIDViewer,
         AttitudeViewer,
         MagFitTool,
-        EkfHelperTool
+        EkfHelperTool,
+        ChatBot
     },
     computed: {
         mapOk () {
